@@ -186,7 +186,7 @@ static int append_patches(git_buf *out, git_diff *diff)
 	return error;
 }
 
-int git_email_create_from_diff(
+int git_email__append_from_diff(
 	git_buf *out,
 	git_diff *diff,
 	size_t patch_idx,
@@ -197,7 +197,6 @@ int git_email_create_from_diff(
 	const git_signature *author,
 	const git_email_create_options *given_opts)
 {
-	git_buf email = GIT_BUF_INIT;
 	git_email_create_options opts = GIT_EMAIL_CREATE_OPTIONS_INIT;
 	int error;
 
@@ -214,19 +213,43 @@ int git_email_create_from_diff(
 	if (given_opts)
 		memcpy(&opts, given_opts, sizeof(git_email_create_options));
 
-	git_buf_sanitize(out);
-
-	if ((error = append_header(&email, patch_idx, patch_count, commit_id, summary, author, &opts)) < 0 ||
-	    (error = append_body(&email, body)) < 0 ||
-	    (error = git_buf_puts(&email, "---\n")) < 0 ||
-	    (error = append_diffstat(&email, diff)) < 0 ||
-	    (error = append_patches(&email, diff)) < 0 ||
-	    (error = git_buf_puts(&email, "--\nlibgit2 " LIBGIT2_VERSION "\n\n")) < 0)
+	if ((error = append_header(out, patch_idx, patch_count, commit_id, summary, author, &opts)) < 0 ||
+	    (error = append_body(out, body)) < 0 ||
+	    (error = git_buf_puts(out, "---\n")) < 0 ||
+	    (error = append_diffstat(out, diff)) < 0 ||
+	    (error = append_patches(out, diff)) < 0 ||
+	    (error = git_buf_puts(out, "--\nlibgit2 " LIBGIT2_VERSION "\n\n")) < 0)
 		goto done;
 
-	git_buf_swap(out, &email);
+	error = 0;
 
 done:
+	return error;
+}
+
+int git_email_create_from_diff(
+	git_buf *out,
+	git_diff *diff,
+	size_t patch_idx,
+	size_t patch_count,
+	const git_oid *commit_id,
+	const char *summary,
+	const char *body,
+	const git_signature *author,
+	const git_email_create_options *given_opts)
+{
+	git_buf email = GIT_BUF_INIT;
+	int error;
+
+	git_buf_sanitize(out);
+
+	error = git_email__append_from_diff(&email, diff, patch_idx,
+		patch_count, commit_id, summary, body, author,
+		given_opts);
+
+	if (!error)
+		git_buf_swap(out, &email);
+
 	git_buf_dispose(&email);
 	return error;
 }
