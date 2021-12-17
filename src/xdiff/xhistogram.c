@@ -258,6 +258,7 @@ static int fall_back_to_classic_diff(struct histindex *index,
 		int line1, int count1, int line2, int count2)
 {
 	xpparam_t xpp;
+	memset(&xpp, 0, sizeof(xpp));
 	xpp.flags = index->xpp->flags & ~XDF_DIFF_ALGORITHM_MASK;
 
 	return xdl_fall_back_diff(index->env, &xpp,
@@ -272,7 +273,7 @@ static int histogram_diff(
 	struct histindex index;
 	struct region lcs;
 	size_t sz;
-	int result = -1;
+	int result = -1, lcs_found = 0;
 
 	if (count1 <= 0 && count2 <= 0)
 		return 0;
@@ -328,8 +329,14 @@ static int histogram_diff(
 	index.max_chain_length = 64;
 
 	memset(&lcs, 0, sizeof(lcs));
-	if (find_lcs(&index, &lcs, line1, count1, line2, count2))
+
+	lcs_found = find_lcs(&index, &lcs, line1, count1, line2, count2);
+	if (lcs_found < 0) {
+		goto cleanup;
+	}
+	else if (lcs_found) {
 		result = fall_back_to_classic_diff(&index, line1, count1, line2, count2);
+	}
 	else {
 		if (lcs.begin1 == 0 && lcs.begin2 == 0) {
 			while (count1--)
