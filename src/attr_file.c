@@ -40,7 +40,8 @@ int git_attr_file__new(
 
 	if (git_mutex_init(&attrs->lock) < 0) {
 		git_error_set(GIT_ERROR_OS, "failed to initialize lock");
-		goto on_error;
+		git__free(attrs);
+		return -1;
 	}
 
 	if (git_pool_init(&attrs->pool, 1) < 0)
@@ -53,6 +54,7 @@ int git_attr_file__new(
 	return 0;
 
 on_error:
+	git_mutex_free(attrs->lock);
 	git__free(attrs);
 	return -1;
 }
